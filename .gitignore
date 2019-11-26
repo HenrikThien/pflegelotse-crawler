@@ -1,0 +1,7 @@
+./chromedriver
+*.xlsx
+*.spec
+/__pycache__
+/build
+/certifi
+/dist
