@@ -25,6 +25,14 @@ def main():
 
     city = citys[0]
 
+    versorgungsform = input("Welche Versorgungsform wird gesucht? (ambulant = a, stationär = s): ")
+    pa_py = versorgungsform
+
+    pflegeart = "x"
+
+    if pa_py == "s":
+        pflegeart = input("Welche Pflegeart? (t)ages, (n)acht, (k)urzzeit: ")
+
     browser = webdriver.Chrome('../../chromedriver')
     browser.set_page_load_timeout(30)
     browser.get("https://pflegelotse.de")
@@ -33,25 +41,52 @@ def main():
     einrichtung_suchen = half_box.find_elements_by_tag_name("button")[0]
     einrichtung_suchen.click()
 
-    inputElement = browser.find_element_by_id('ctl00_ContentPlaceHolder1_suche_bezirk')
-    inputElement.send_keys(city['value'])
+    searchFieldEntry(browser, 'ctl00_ContentPlaceHolder1_suche_bezirk', 'ctl00_ContentPlaceHolder1_suche_bezirk_listbox', city)
 
-    WebDriverWait(browser, 5).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_suche_bezirk_listbox")))
-    WebDriverWait(browser, 5).until(EC.presence_of_element_located((By.CLASS_NAME, "tt-suggestion")))
-
-    selection = browser.find_element_by_id('ctl00_ContentPlaceHolder1_suche_bezirk_listbox')
-    first_entry = browser.find_element_by_class_name('tt-suggestion')
-
-    first_entry.click()
-
-    button = browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_versorgung1")
-    button.click()
+    browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_versorgung1").click()
+    
+    if pa_py == "s":
+        browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_versorgung2").click()
+        selectStationaerField(browser, pflegeart)
+        #searchFieldEntry(browser, 'ctl00_ContentPlaceHolder1_suche_bezirk', 'ctl00_ContentPlaceHolder1_suche_bezirk_listbox', city)
 
     submit = browser.find_element_by_id('ctl00_ContentPlaceHolder1_suche_btn_suche')
     submit.click()
 
+    # todo stealing must be different in stationär.....
     stealing_process(browser)
 
+def selectStationaerField(browser, pflegeart):
+    WebDriverWait(browser, 30).until(EC.presence_of_element_located((By.ID, "stationaer")))
+    WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "nophone")))
+    time.sleep(2)
+
+    if pflegeart == "t":
+        WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_suche_btn_pflegeart2")))
+        browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_pflegeart2").click()
+    elif pflegeart == "n":
+        WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_suche_btn_pflegeart3")))
+        browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_pflegeart3").click()
+    else:
+        WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_suche_btn_pflegeart4")))
+        browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_pflegeart4").click();
+
+def searchFieldEntry(browser, inputName, listboxName, city):
+    inputElement = browser.find_element_by_id(inputName)
+    inputElement.send_keys(city['value'])
+
+    WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.ID, listboxName)))
+    WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "tt-suggestion")))
+
+    selection = browser.find_element_by_id(listboxName)
+
+    entries = browser.find_elements_by_class_name('tt-suggestion')
+
+    print(city['value'])
+
+    for i in entries:
+        if city['value'] == i.text:
+            i.click()
     
 def stealing_process(browser):
     WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, "results_ambulant")))
