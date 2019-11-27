@@ -6,6 +6,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import Select
 import json 
 import time
 import sys
@@ -14,7 +15,7 @@ import traceback
 from datetime import date
 import chromedriver_binary
 
-import os
+import os,sys
 
 ###
 # Funktioniert nur mit der Ambulanten suche im Moment
@@ -40,7 +41,10 @@ def main():
     pflegeart = "x"
 
     if pa_py == "s":
-        pflegeart = input("Welche Pflegeart? (t)ages, (n)acht, (k)urzzeit: ")
+        pflegeart = input("Welche Pflegeart? (v)ollstationäre, (t)ages, (n)acht, (k)urzzeit: ")
+
+
+    kilometer = input("Suche im Umkreis von (5, 10, 15, 25, 50) km: ")
 
     PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
     DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver")
@@ -48,7 +52,7 @@ def main():
     chrome_options = Options()  
     chrome_options.add_argument("--headless")
 
-    #,options=chrome_options
+    #options=chrome_options
     browser = webdriver.Chrome(executable_path=DRIVER_BIN,options=chrome_options)
     browser.set_page_load_timeout(30)
     browser.get("https://pflegelotse.de")
@@ -58,6 +62,10 @@ def main():
     einrichtung_suchen.click()
 
     searchFieldEntry(browser, 'ctl00_ContentPlaceHolder1_suche_bezirk', 'ctl00_ContentPlaceHolder1_suche_bezirk_listbox', city)
+
+    WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_suche_umkreis")))
+    select = Select(browser.find_element_by_id('ctl00_ContentPlaceHolder1_suche_umkreis'))
+    select.select_by_value(kilometer)
 
     browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_versorgung1").click()
     
@@ -71,7 +79,7 @@ def main():
     if pa_py == "a":
         stealing_process_ambulant(browser)
     elif pa_py == "s":
-        stealing_process_stationaer(browser)
+        stealing_process_stationaer(browser, pflegeart)
     else:
         print("Für diese Vorsorgeform gibt es noch keine Funktion..")
 
@@ -102,9 +110,12 @@ def selectStationaerField(browser, pflegeart):
     elif pflegeart == "n":
         WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_suche_btn_pflegeart3")))
         browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_pflegeart3").click()
-    else:
+    elif pflegeart == "k":
         WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_suche_btn_pflegeart4")))
-        browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_pflegeart4").click();
+        browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_pflegeart4").click()
+    else:
+        WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_suche_btn_pflegeart1")))
+        browser.find_element_by_id("ctl00_ContentPlaceHolder1_suche_btn_pflegeart1").click()
 
 def searchFieldEntry(browser, inputName, listboxName, city):
     inputElement = browser.find_element_by_id(inputName)
@@ -121,13 +132,13 @@ def searchFieldEntry(browser, inputName, listboxName, city):
         if city['value'] == i.text:
             i.click()
 
-def stealing_process_stationaer(browser):
+def stealing_process_stationaer(browser, pflegeart):
     WebDriverWait(browser, 20).until(EC.presence_of_element_located((By.ID, "results_vollstationaer")))
 
     res_table = browser.find_element_by_id("results_vollstationaer")
     tbody = res_table.find_elements_by_tag_name("tbody")
     rows = tbody[0].find_elements_by_tag_name("tr")
-
+    
     dienste = []
 
     loop_num = len(rows)
@@ -135,45 +146,57 @@ def stealing_process_stationaer(browser):
     for i in range(loop_num):
         row = rows[i]
 
-        cols = rows[i].find_elements_by_tag_name("td")
+        try:
+            name = ""
+            telefon = ""
 
-        name = cols[0].text
+            try:
+                cols = rows[i].find_elements_by_tag_name("td")
 
-        atrs = name.splitlines()
+                name = cols[0].text
+                atrs = name.splitlines()
+                name = atrs[0]
+                tel = atrs[3].split(":")[1].strip()
 
-        name = atrs[0]
-        print("found %s" % name)
-        strasse = atrs[1]
-        plz = atrs[2].split()[0]
-        ort = atrs[2].split()[1]
-        tel = atrs[3].split(":")[1].strip()
+            except:
+                print("td wurde nicht gefunden!?")
 
-        if tel == "--":
-            tel = ""
+            if tel == "--":
+                tel = ""
 
-        dienst = {
-            "name": name,
-            "tel": tel,
-            "strasse": strasse,
-            "plz": plz,
-            "ort": ort,
-            "email": "",
-            "web": ""
-        }
-        
-        x1 = json.dumps(dienst)
-        obj = json.loads(x1)
-        dienste_list.append(obj)
-        
+            try:
+                row.click()           
+                fetch_infos(browser, name, tel)
+            except:
+                link = browser.find_element_by_id("ctl00_ContentPlaceHolder1_lvDesktopVollstationaer_ctrl%d_DetailButton" % i)
+                browser.execute_script("arguments[0].click();", link)
+                fetch_infos(browser, name, tel)
+
+            WebDriverWait(browser, 40).until(EC.presence_of_element_located((By.ID, "results_vollstationaer")))
+
+            res_table = browser.find_element_by_id("results_vollstationaer")
+            tbody = res_table.find_elements_by_tag_name("tbody")
+            rows = tbody[0].find_elements_by_tag_name("tr")
+
+        except Exception as e: 
+            print(e)
+
     try:
-        next_page = browser.find_element_by_id("ctl00_ContentPlaceHolder1_lvDesktopTeilstationaerPager_ctl02_NextButton")
+        back_button = ""
+
+        if pflegeart == "v":
+            back_button = "ctl00_ContentPlaceHolder1_lvDesktopVollstationaerPager_ctl02_NextButton"
+        else:
+            back_button = "ctl00_ContentPlaceHolder1_lvDesktopTeilstationaerPager_ctl02_NextButton"
+
+        next_page = browser.find_element_by_id(back_button)
         disabled = attribute_exists(next_page, "disabled")
         if disabled != True:
             next_page.click()
-            stealing_process_stationaer(browser)
+            stealing_process_stationaer(browser, pflegeart)
         else:
             browser.quit()
-    except:
+    except Exception as e:
         browser.quit()
 
 def attribute_exists(element, attribute):
@@ -216,10 +239,21 @@ def stealing_process_ambulant(browser):
             except:
                 print("td wurde nicht gefunden!?")
 
-            print("found: %s" % name)
+            #print("found: %s" % name)
 
-            row.click()           
-            fetch_infos(browser, name, telefon)
+            if telefon == "--":
+                telefon = ""
+
+            #row.click()           
+            #fetch_infos(browser, name, telefon)
+
+            try:
+                row.click()           
+                fetch_infos(browser, name, telefon)
+            except:
+                link = browser.find_element_by_id("ctl00_ContentPlaceHolder1_lvDesktopAmbulant_ctrl%d_DetailButton" % i)
+                browser.execute_script("arguments[0].click();", link)
+                fetch_infos(browser, name, telefon)
 
             WebDriverWait(browser, 40).until(EC.presence_of_element_located((By.ID, "results_ambulant")))
             res_table = browser.find_element_by_id("results_ambulant")
@@ -242,7 +276,7 @@ def stealing_process_ambulant(browser):
 
 
 def fetch_infos(browser, name, telefon):
-    WebDriverWait(browser, 40).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_aZurueck")))
+    WebDriverWait(browser, 40).until(EC.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolder1_spanZurueck")))
 
     email = ""
     website = ""
@@ -270,6 +304,8 @@ def fetch_infos(browser, name, telefon):
         website = browser.find_element_by_id("ctl00_ContentPlaceHolder1_a_webseite_header").text
     except:
         website = ""
+
+    print("fetched %s" % name)
             
     dienst = {
         "name": name,
@@ -290,7 +326,15 @@ def fetch_infos(browser, name, telefon):
 
 def create_excel_file(type, ort):
     today = date.today()
-    workbook = xlsxwriter.Workbook("pf-%s-%s-%s.xlsx" % (today,type,ort))
+    import sys, os
+    if getattr(sys, 'frozen', False):
+        application_path = sys._MEIPASS
+    else:
+        application_path = os.path.dirname(os.path.abspath(__file__))
+
+    save_dir = os.path.join(application_path, "pf-%s-%s-%s.xlsx" % (today,type,ort))
+    print("Speichere die Excel Datei hier: %s" % save_dir)
+    workbook = xlsxwriter.Workbook(save_dir)
     worksheet = workbook.add_worksheet()
 
     worksheet.write('A1', 'Nachname')

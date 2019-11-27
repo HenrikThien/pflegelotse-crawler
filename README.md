@@ -1,8 +1,15 @@
-# Pflegelotse Dieb
-Dieses Programm benutzt die Seite pflegelotse automatisiert um an Daten zu kommen.
+# Pflegelotse Crawler
+Dieses Programm benutzt die Seite pflegelotse um Benutzersuchen zu automatisieren.
 
-## Installation
+## Installation Voraussetzungen
 <ul>
-    <li>Python</li>
+    <li>Python3.7+</li>
+    <li>Dependencies installieren</li>
+    <li>Chrome Browser</li>
     <li>Chromedriver</li>
 </ul>
+
+## Releases
+### V1
+Basis Version
+Herrunterladen, entpacken, Chromedriver mit der Version Ihres Chrome-Browsers mit in das Verzeichnis legen.
