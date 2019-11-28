@@ -14,7 +14,6 @@ import xlsxwriter
 import traceback
 from datetime import date
 import chromedriver_binary
-
 import os,sys
 
 ###
@@ -98,6 +97,7 @@ def main():
         print()
 
     print("Programm beendet.")
+    os.system("pause")
 
 def selectStationaerField(browser, pflegeart):
     WebDriverWait(browser, 30).until(EC.presence_of_element_located((By.ID, "stationaer")))
@@ -326,13 +326,11 @@ def fetch_infos(browser, name, telefon):
 
 def create_excel_file(type, ort):
     today = date.today()
-    import sys, os
-    if getattr(sys, 'frozen', False):
-        application_path = sys._MEIPASS
-    else:
-        application_path = os.path.dirname(os.path.abspath(__file__))
 
-    save_dir = os.path.join(application_path, "pf-%s-%s-%s.xlsx" % (today,type,ort))
+    PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+    DRIVER_BIN = os.path.join(PROJECT_ROOT, "pf-%s-%s-%s.xlsx" % (today,type,ort))
+
+    save_dir = DRIVER_BIN
     print("Speichere die Excel Datei hier: %s" % save_dir)
     workbook = xlsxwriter.Workbook(save_dir)
     worksheet = workbook.add_worksheet()
